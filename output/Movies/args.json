@@ -1,0 +1,19 @@
+{
+    "edge_attr": [
+        "relation"
+    ],
+    "file_path": "Data/Movies/triples.csv",
+    "graph_output_dir": "graphs/Movies/",
+    "num_q_nodes": 5,
+    "output_dir": "output/Movies/",
+    "query_nodes": [
+        "http://www.wikidata.org/entity/Q172837",
+        "http://www.wikidata.org/entity/Q3018358",
+        "http://www.wikidata.org/entity/Q19403453",
+        "http://www.wikidata.org/entity/Q859448",
+        "http://www.wikidata.org/entity/Q3103256"
+    ],
+    "seed": 1,
+    "source": "head_uri",
+    "target": "tail_uri"
+}
