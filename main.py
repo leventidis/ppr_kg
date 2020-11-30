@@ -18,22 +18,25 @@ from sklearn.metrics import ndcg_score, dcg_score
 
 
 def main(args):
-    # Get graph from csv
-    G = utils.graph.get_graph_from_csv(file='Data/Movies/triples.csv', source='head_uri', target='tail_uri', edge_attr=['relation'])
+    if args.graph_path:
+        G = nx.read_gpickle(args.graph_path)
+    else:
+        # We need to create the graph from a csv
+        G = utils.graph.get_graph_from_csv(file=args.file_path, source=args.source, target=args.target, edge_attr=args.edge_attr)
 
-    # Convert all node names to integer IDs (starting with ID=0)
-    ids = range(G.number_of_nodes())
-    nodes = list(G.nodes())
-    id_to_node_dict = {ids[i]: nodes[i] for i in range(len(ids))}
-    node_to_id_dict = {nodes[i]: ids[i] for i in range(G.number_of_nodes())}
-    G = nx.relabel_nodes(G, node_to_id_dict)
+        # Convert all node names to integer IDs (starting with ID=0)
+        ids = range(G.number_of_nodes())
+        nodes = list(G.nodes())
+        id_to_node_dict = {ids[i]: nodes[i] for i in range(len(ids))}
+        node_to_id_dict = {nodes[i]: ids[i] for i in range(G.number_of_nodes())}
+        G = nx.relabel_nodes(G, node_to_id_dict)
 
-    # Save the graph and the dictionaries
-    nx.write_gpickle(G, path=args.graph_output_dir + 'graph.gpickle')
-    with open(args.output_dir + 'id_to_node_dict.pickle', 'wb') as handle:
-        pickle.dump(id_to_node_dict, handle)
-    with open(args.output_dir + 'node_to_id_dict.pickle', 'wb') as handle:
-        pickle.dump(node_to_id_dict, handle)
+        # Save the graph and the dictionaries
+        nx.write_gpickle(G, path=args.graph_output_dir + 'graph.gpickle')
+        with open(args.output_dir + 'id_to_node_dict.pickle', 'wb') as handle:
+            pickle.dump(id_to_node_dict, handle)
+        with open(args.output_dir + 'node_to_id_dict.pickle', 'wb') as handle:
+            pickle.dump(node_to_id_dict, handle)
 
     print('Input graph has', G.number_of_nodes(), 'nodes and', G.number_of_edges(), 'edges')
 
@@ -109,15 +112,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run Personalized Page Rank (PPR) on a graph')
 
     # Path to the input csv file used to build the graph
-    parser.add_argument('-f', '--file_path', metavar='file_path', required=True,
+    parser.add_argument('-f', '--file_path', metavar='file_path',
     help='Path to the input csv file used to build the graph')
 
     # Column header for the source nodes in the csv file
-    parser.add_argument('--source', metavar='source', required=True,
+    parser.add_argument('--source', metavar='source',
     help='Column header for the source nodes in the csv file')
 
     # Column header for the target nodes in the csv file
-    parser.add_argument('--target', metavar='target', required=True,
+    parser.add_argument('--target', metavar='target',
     help='Column header for the target nodes in the csv file')
 
     # Column headers for edge attributes. Can be a list of column headers.
@@ -125,7 +128,7 @@ if __name__ == "__main__":
     help='Column headers for edge attributes. Can be a list of column headers.')
 
     # Directory where the constructed graph is saved as a pickle file
-    parser.add_argument('-go', '--graph_output_dir', metavar='graph_output', required=True,
+    parser.add_argument('-go', '--graph_output_dir', metavar='graph_output',
     help='Directory where the constructed graph is saved as a pickle file')
 
     # Directory where the ppr scores for every node are saved
@@ -148,16 +151,34 @@ if __name__ == "__main__":
     parser.add_argument('--run_networkx_ppr', action='store_true', 
     help='Denotes if we want to run the PPR implementation provided by NetworkX.')
 
+    # If specified graph already exists so we do not need to build it and can directly load it
+    # The path to the graph must be a pickle object of a networkx graph.
+    parser.add_argument('--graph_path', metavar='graph_path',
+    help='If specified graph already exists so we do not need to build it and can directly load it.\
+    The path to the graph must be a pickle object of a networkx graph.')
+
     # Parse the arguments
     args = parser.parse_args() 
 
+    # Ensure we have all necessary arguments
+    if args.graph_path is None and (args.file_path is None or args.source is None or args.target is None or
+        args.edge_attr is None or args.graph_output_dir is None):
+        parser.error('''
+        if --graph_path is not specified must specify all of the following arguments:
+        --file_path, --source, --target, --edge_attr, --graph_output_dir''')
+    
     print('##### ----- Running main.py with the following parameters ----- #####\n')
 
-    print('CSV file path:', args.file_path)
-    print('Source column header:', args.source)
-    print('Target column header:', args.target)
-    print('Edge attributes column headers:', args.edge_attr)
-    print('Graph output directory:', args.graph_output_dir)
+    if args.graph_path:
+        print('Graph path:', args.graph_path)
+    else:
+        print('CSV file path:', args.file_path)
+        print('Source column header:', args.source)
+        print('Target column header:', args.target)
+        print('Edge attributes column headers:', args.edge_attr)
+        print('Graph output directory:', args.graph_output_dir)
+        Path(args.graph_output_dir).mkdir(parents=True, exist_ok=True)
+
     print('Output directory', args.output_dir)
     print('Number of query nodes randomly chosen', args.num_q_nodes)
     if args.run_ppr_from_each_query_node:
@@ -166,8 +187,7 @@ if __name__ == "__main__":
         print('In addition: Run PPR using the implementation by NetworkX')
     if args.seed:
         print('User specified seed:', args.seed)
-        # Set the seed
-        random.seed(args.seed)
+        random.seed(args.seed) # Set the seed
     else:
         # Generate a random seed if not specified
         args.seed = random.randrange(sys.maxsize)
@@ -175,8 +195,7 @@ if __name__ == "__main__":
         print('No seed specified, picking one at random. Seed chosen is:', args.seed)
     print('\n\n')
 
-    # Create the output directories if they doesn't exist
-    Path(args.graph_output_dir).mkdir(parents=True, exist_ok=True)
+    # Create the output directory if it doesn't exist
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     # Save the input arguments in the output_dir
