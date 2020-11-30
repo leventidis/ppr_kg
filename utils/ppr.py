@@ -1,8 +1,11 @@
 import networkx as nx
 import numpy as np
+
+import os
+
 from timeit import default_timer as timer
 
-def get_ppr(G, Q, c=0.15, t=0.001):
+def get_ppr(G, Q, c=0.15, t=0.01, return_type='dict'):
     '''
     Run ppr using particle filtering on graph `G` and using query nodes `Q`
 
@@ -18,51 +21,86 @@ def get_ppr(G, Q, c=0.15, t=0.001):
         TODO: If we want to use a non-uniform distribution of particles for each node, we can feed a vector of `t` values
         for each node in the query nodes set Q. 
 
+        return_type (str): This string is either 'dict' or 'array'. If 'dict' return a dictionary keyed by node id
+        to its corresponding ppr score. If 'array' return a numpy array where ppr scores are indexed by the node id.
+
     Returns
     -------
-    Returns the personalized page rank for each node in the graph (python dictionary keyed by node).
+    Returns the personalized page rank for each node in the graph (python dictionary keyed by node or just an numpy array
+    indexed by the node id depending on the specified `return_type` argument).
     '''
+
+    allowed_return_types = ['dict', 'array']
+    if return_type not in allowed_return_types:
+        raise ValueError("Invalid return type argument. Expected one of: %s" % allowed_return_types)
 
     start = timer()
     print('Calculating PPR using particle filtering...')
-
-    # TODO: This step could be done as a priori for optimization.
-    # So then we only deal with graphs specified by ids and not names of nodes which can be very lengthy (i.e. string values)
-    #  
-    # Create a mapping of every node to a unique integer index starting from 0
-    indices = range(G.number_of_nodes())
-    nodes = list(G.nodes())
-    node_to_index_dict = {nodes[i]: indices[i] for i in range(G.number_of_nodes())}
-
     v = np.zeros(G.number_of_nodes())
     p = np.zeros(G.number_of_nodes())
+    num_iterations = 0
     for q in Q:
-        p[node_to_index_dict[q]] = 1/t
+        p[q] = 1/t
     while np.any(p):
+        num_iterations += 1
         temp = np.zeros(G.number_of_nodes())
         # Loop all non-zero values in the p array
         for i in range(len(p)):
             if p[i] > 0:
                 particles = p[i]*(1-c)
                 # Get list of outgoing edges from node n sorted by descending order (highest weight edge first)
-                edges=sorted(G.out_edges(nodes[i], data=True), key=lambda t: t[2]['weight'], reverse=True)
+                edges=sorted(G.out_edges(i, data=True), key=lambda t: t[2]['weight'], reverse=True)
                 
                 for edge in edges:
                     if particles <= t:
                         break
                     passing = max(particles * edge[2]['weight'], t)
-                    temp[node_to_index_dict[edge[1]]] = temp[node_to_index_dict[edge[1]]] + passing
+                    temp[edge[1]] = temp[edge[1]] + passing
                     particles -= passing
         p = temp
         for i in range(len(v)):
             v[i] = v[i] + p[i] * c
 
-    # Construct the dictionary of the personalized page rank
-    ppr_dict = {}
-    for i in range(len(v)):
-        ppr_dict[nodes[i]] = v[i]
+    if return_type == 'dict':
+        # Construct the dictionary of the personalized page rank
+        ppr_dict = {}
+        for i in range(len(v)):
+            ppr_dict[i] = v[i]
 
+    print('Finished calculating PPR using particle filtering. Took', num_iterations, 'iterations for convergence.',
+    'Elapsed time is:', timer()-start, 'seconds.\n')
 
-    print('Finished calculating PPR using particle filtering. Elapsed time is:', timer()-start, 'seconds.\n')
+    if return_type == 'dict':
+        return ppr_dict
+    elif return_type == 'array':
+        return v
 
-    return ppr_dict
+def get_ppr_from_single_source_nodes(dir):
+    '''
+    Given a directory of the PPR scores from each source node, combine them to
+    get an estimate of the PPR score from all the source nodes.
+
+    The combined vector is simply the average of all the ppr vectors from each source
+
+    Arguments
+    -------
+        dir (str): Directory where all the ppr scores are stored for each source.
+        All the files in the directory must be .npy binary files.
+
+    Returns
+    -------
+    A numpy array of the combined ppr scores. The array is indexed by the node id 
+    '''
+    combined_ppr_scores = np.array([])
+    numpy_files = os.listdir(dir)
+    for numpy_file in numpy_files:
+        with open(dir + numpy_file, 'rb') as f:
+            ppr_scores = np.load(f)
+            if combined_ppr_scores.size == 0:
+                # Initialize to zero
+                combined_ppr_scores = np.zeros(len(ppr_scores))
+            combined_ppr_scores += ppr_scores
+
+    # Average the array by the number source nodes
+    combined_ppr_scores /= len(numpy_files)
+    return combined_ppr_scores

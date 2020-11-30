@@ -1,5 +1,6 @@
-
-
+graphs/single_source_ppr_movies
+output/single_source_ppr_movies
+output/Movies/single_source_ppr_scores
 
 # VScode ignores
 .vscode/
