@@ -8,7 +8,8 @@ import json
 import random
 import sys
 
-from heapq import nlargest 
+from heapq import nlargest
+from tqdm import tqdm
 
 import utils
 from pathlib import Path
@@ -46,23 +47,39 @@ def main(args):
     # Save the chosen nodes Q into the json file
     utils.auxiliary_functions.set_json_attr_val('query_nodes', Q, file_path=args.output_dir+'args.json')
 
-    # Get the PPR scores for every node in G given a set of query nodes Q
-    ppr_np_array = utils.ppr.get_ppr(G, Q, return_type='array')
+    # Get the PPR scores for every node in G given a set of query nodes Q using particle filtering
+    start = timer()
+    print('Calculating PPR using particle filtering...')
+    ppr_np_array, num_iterations = utils.ppr.get_ppr(G, Q, return_type='array')
+    elapsed_time = timer()-start
+    print('Finished calculating PPR using particle filtering. Took', num_iterations, 'iterations for convergence. Elapsed time is:', elapsed_time, 'seconds.\n')
     with open(args.output_dir + 'particle_filtering_ppr_scores.npy', 'wb') as f:
         np.save(f, ppr_np_array)
+    utils.auxiliary_functions.set_json_attr_val('ppr_using_pf', {'runtime': elapsed_time, 'num_iterations': num_iterations }, file_path=args.output_dir+'info.json')
 
     # Check if we want to also run PPR from each query node seperately
     if args.run_ppr_from_each_query_node:
         single_source_output_dir = args.output_dir + 'single_source_ppr_scores/'
         Path(args.output_dir + 'single_source_ppr_scores/').mkdir(parents=True, exist_ok=True)
+        print('Calculating PPR from each source in the query set...')
+        stats_dict = {}
         #TODO: Parallelize this operation
-        for query_node in Q:
-            ppr_single_source_node_np_array = utils.ppr.get_ppr(G, [query_node], return_type='array')
+        for query_node in tqdm(Q):
+            start = timer()
+            ppr_single_source_node_np_array, num_iterations = utils.ppr.get_ppr(G, [query_node], return_type='array')
+            elapsed_time = timer()-start
+            stats_dict[query_node] = {'runtime': elapsed_time, 'num_iterations': num_iterations }
             with open(single_source_output_dir + str(query_node) + '.npy', 'wb') as f:
                 np.save(f, ppr_single_source_node_np_array)
+        utils.auxiliary_functions.set_json_attr_val('ppr_single_source_using_pf', stats_dict, file_path=args.output_dir+'info.json')
+        print('Finished calculating PPR from each source in the query set.\n')
+
+        # Calculate a combined ppr vector for all sources in the query 
+        ppr_single_sources = utils.ppr.get_ppr_from_single_source_nodes(single_source_output_dir)
+        with open(args.output_dir + 'ppr_single_source_scores.npy', 'wb') as f:
+            np.save(f, ppr_single_sources)
 
     # Evaluation of the results 
-
     # Top-10 nodes using particle filtering
     top_k_ppr = utils.auxiliary_functions.get_top_k_vals_numpy(ppr_np_array, k=10)
     print('TOP-10 nodes using particle filtering')
@@ -70,11 +87,6 @@ def main(args):
         print(str(tup[0]) + ': ' + str(tup[1]))
 
     if args.run_ppr_from_each_query_node:
-        # Top-10 nodes using ppr from each query node
-        ppr_single_sources = utils.ppr.get_ppr_from_single_source_nodes(args.output_dir+'single_source_ppr_scores/')
-        with open(args.output_dir + 'ppr_single_source_scores.npy', 'wb') as f:
-            np.save(f, ppr_single_sources)
-
         # Get top-k values from numpy array
         top_k_ppr_single_sources = utils.auxiliary_functions.get_top_k_vals_numpy(ppr_single_sources, 10)
         print('\nTOP-10 nodes using multiple sources particle filtering')
@@ -84,6 +96,7 @@ def main(args):
         # Calculate the normalized discounted cumulative gain (NDCG) between the ppr vs the ppr_single_source rankings
         k_vals = [1, 5, 10, 50, 100, 200, 500, 1000]
         ndcg_dict = {}
+        print('\n\nNormalized discounted cumulative gain (NDCG) scores at various k values')
         for k in k_vals:
             ndcg_dict[k] = ndcg_score(np.array([ppr_np_array]), np.array([ppr_single_sources]), k=k)
             print('NDCG score at k=' + str(k) + ':', ndcg_dict[k])

@@ -22,10 +22,7 @@ Here we run PPR from a single source node. If we consider multiple query nodes t
 
 ```
 python main.py \
---file_path Data/Movies/triples.csv \
---source head_uri --target tail_uri \
---edge_attr relation \
---graph_output_dir graphs/Movies/ \
+--graph_path graphs/Movies/graph.gpickle \
 --output_dir output/Movies/ \
 --num_q_nodes 5 \
 --seed 1 \

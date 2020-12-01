@@ -1,21 +1,20 @@
 {
-    "edge_attr": [
-        "relation"
-    ],
-    "file_path": "Data/Movies/triples.csv",
-    "graph_output_dir": "graphs/Movies/",
+    "edge_attr": null,
+    "file_path": null,
+    "graph_output_dir": null,
+    "graph_path": "graphs/Movies/graph.gpickle",
     "num_q_nodes": 5,
     "output_dir": "output/Movies/",
     "query_nodes": [
-        1998,
-        13143,
-        12197,
-        17591,
-        5071
+        2513,
+        15852,
+        14287,
+        4771,
+        9268
     ],
     "run_networkx_ppr": false,
     "run_ppr_from_each_query_node": true,
-    "seed": 14,
-    "source": "head_uri",
-    "target": "tail_uri"
+    "seed": 1,
+    "source": null,
+    "target": null
 }

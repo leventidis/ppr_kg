@@ -5,7 +5,7 @@ import os
 
 from timeit import default_timer as timer
 
-def get_ppr(G, Q, c=0.15, t=0.01, return_type='dict'):
+def get_ppr(G, Q, c=0.15, t=0.001, return_type='dict', quiet=True):
     '''
     Run ppr using particle filtering on graph `G` and using query nodes `Q`
 
@@ -24,18 +24,26 @@ def get_ppr(G, Q, c=0.15, t=0.01, return_type='dict'):
         return_type (str): This string is either 'dict' or 'array'. If 'dict' return a dictionary keyed by node id
         to its corresponding ppr score. If 'array' return a numpy array where ppr scores are indexed by the node id.
 
+        quiet (bool): If set to true this function will not print() debugging information to standard output.
+
     Returns
     -------
-    Returns the personalized page rank for each node in the graph (python dictionary keyed by node or just an numpy array
-    indexed by the node id depending on the specified `return_type` argument).
+    Returns two objects:
+
+        1. The personalized page rank for each node in the graph (python dictionary keyed by node or just an numpy array
+        indexed by the node id depending on the specified `return_type` argument).
+
+        2. The number of iterations it took to the algorithm to converge
     '''
 
     allowed_return_types = ['dict', 'array']
     if return_type not in allowed_return_types:
         raise ValueError("Invalid return type argument. Expected one of: %s" % allowed_return_types)
 
-    start = timer()
-    print('Calculating PPR using particle filtering...')
+    if not quiet:
+        start = timer()
+        print('Calculating PPR using particle filtering...')
+
     v = np.zeros(G.number_of_nodes())
     p = np.zeros(G.number_of_nodes())
     num_iterations = 0
@@ -67,13 +75,14 @@ def get_ppr(G, Q, c=0.15, t=0.01, return_type='dict'):
         for i in range(len(v)):
             ppr_dict[i] = v[i]
 
-    print('Finished calculating PPR using particle filtering. Took', num_iterations, 'iterations for convergence.',
-    'Elapsed time is:', timer()-start, 'seconds.\n')
+    if not quiet:
+        print('Finished calculating PPR using particle filtering. Took', num_iterations, 'iterations for convergence.',
+        'Elapsed time is:', timer()-start, 'seconds.\n')
 
     if return_type == 'dict':
-        return ppr_dict
+        return ppr_dict, num_iterations
     elif return_type == 'array':
-        return v
+        return v, num_iterations
 
 def get_ppr_from_single_source_nodes(dir):
     '''

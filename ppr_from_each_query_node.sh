@@ -2,22 +2,27 @@
 
 # Shell script to run multiple times with different seeds the ppr from a single node
 
-file_path=Data/Movies/triples.csv
-graph_output_dir=graphs/single_source_ppr_movies/
-output_dir=output/single_source_ppr_movies/
-num_q_nodes=10
+graph_path=graphs/random/nodes1000/
+output_dir=output/random/nodes1000/
 
-num_runs=10
+# Sizes of query sets to test
+declare -a num_query_nodes_arr=("5" "10" "20" "100")
 
-for cur_run in $(seq 1 $num_runs);
+# Number of runs (i.e. distict seeds) at each query set size
+num_runs=1
+
+for i in "${num_query_nodes_arr[@]}"
 do
-    seed=$cur_run
+    num_q_nodes=$i
+    for cur_run in $(seq 1 $num_runs);
+    do
+        seed=$cur_run
 
-    python main.py --file_path $file_path --source head_uri --target tail_uri \
-        --edge_attr relation \
-        --graph_output_dir "${graph_output_dir}seed$seed/" \
-        --output_dir "${output_dir}seed$seed/" \
-        --num_q_nodes $num_q_nodes \
-        --seed $seed \
-        --run_ppr_from_each_query_node
+        python main.py \
+            --graph_path "$graph_path"graph.gpickle \
+            --output_dir "${output_dir}query_nodes${num_q_nodes}/seed$seed/" \
+            --num_q_nodes $num_q_nodes \
+            --seed $seed \
+            --run_ppr_from_each_query_node
+    done
 done
