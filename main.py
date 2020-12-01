@@ -115,6 +115,21 @@ def main(args):
 
         utils.auxiliary_functions.set_json_attr_val('ndcg_scores', ndcg_dict, file_path=args.output_dir+'info.json')
 
+    #Evaluation of Distributed Particle Filtering
+    ppr_dist, num_iterations_dist = utils.ppr.get_ppr_distributed(G, Q, return_type='array')
+    top_k_ppr_dist = utils.auxiliary_functions.get_top_k_vals_numpy(ppr_dist, 10)
+    print('\nTOP-10 nodes using Dist PPR')
+    for tup in top_k_ppr_dist:
+        print(str(tup[0]) + ': ' + str(tup[1]))
+    k_vals = [1, 5, 10, 50, 100, 200, 500, 1000]
+    ndcg_dist_dict = {}
+    print('The number of iterations for distributed PPR', num_iterations_dist)
+    print('\n\nNormalized discounted cumulative gain (NDCG) scores at various k values for Dist PPR')
+    for k in k_vals:
+        ndcg_dict[k] = ndcg_score(np.array([ppr_np_array]), np.array([ppr_dist]), k=k)
+        print('NDCG score at k=' + str(k) + ':', ndcg_dict[k])
+    
+
     if args.run_networkx_ppr:
         # Top-10 nodes using networkx implementation of PPR
         personalization_dict = {}
