@@ -40,6 +40,7 @@ def main(args):
             pickle.dump(node_to_id_dict, handle)
 
     print('Input graph has', G.number_of_nodes(), 'nodes and', G.number_of_edges(), 'edges')
+    utils.auxiliary_functions.set_json_attr_val('graph_info', {'num_nodes': G.number_of_nodes(), 'num_edges': G.number_of_edges()}, file_path=args.output_dir+'args.json')
 
     # Select 'k' query nodes randomly. The nodes selected must have an out-degree of at least 1.
     Q = utils.auxiliary_functions.get_query_nodes(G, k=args.num_q_nodes)
@@ -63,19 +64,28 @@ def main(args):
         Path(args.output_dir + 'single_source_ppr_scores/').mkdir(parents=True, exist_ok=True)
         print('Calculating PPR from each source in the query set...')
         stats_dict = {}
+        # Aggregate vector of the single source nodes
+        aggregate_ppr_single_source_node_np_array = np.zeros(G.number_of_nodes())
         #TODO: Parallelize this operation
         for query_node in tqdm(Q):
             start = timer()
             ppr_single_source_node_np_array, num_iterations = utils.ppr.get_ppr(G, [query_node], return_type='array')
             elapsed_time = timer()-start
-            stats_dict[query_node] = {'runtime': elapsed_time, 'num_iterations': num_iterations }
-            with open(single_source_output_dir + str(query_node) + '.npy', 'wb') as f:
-                np.save(f, ppr_single_source_node_np_array)
+            stats_dict[query_node] = {'runtime': elapsed_time, 'num_iterations': num_iterations}
+            aggregate_ppr_single_source_node_np_array += ppr_single_source_node_np_array
+
+            # Instead of saving the ppr vectors to disk, store in-memory and only save the combined ppr vector
+            # with open(single_source_output_dir + str(query_node) + '.npy', 'wb') as f:
+            #     np.save(f, ppr_single_source_node_np_array)
+
+        # Calculate a combined ppr vector for all sources in the query 
+        ppr_single_sources = aggregate_ppr_single_source_node_np_array / len(Q) 
+
         utils.auxiliary_functions.set_json_attr_val('ppr_single_source_using_pf', stats_dict, file_path=args.output_dir+'info.json')
         print('Finished calculating PPR from each source in the query set.\n')
 
-        # Calculate a combined ppr vector for all sources in the query 
-        ppr_single_sources = utils.ppr.get_ppr_from_single_source_nodes(single_source_output_dir)
+        # ppr_single_sources = utils.ppr.get_ppr_from_single_source_nodes(single_source_output_dir)
+
         with open(args.output_dir + 'ppr_single_source_scores.npy', 'wb') as f:
             np.save(f, ppr_single_sources)
 
@@ -98,8 +108,11 @@ def main(args):
         ndcg_dict = {}
         print('\n\nNormalized discounted cumulative gain (NDCG) scores at various k values')
         for k in k_vals:
-            ndcg_dict[k] = ndcg_score(np.array([ppr_np_array]), np.array([ppr_single_sources]), k=k)
-            print('NDCG score at k=' + str(k) + ':', ndcg_dict[k])
+            ndcg_dict[str(k)] = ndcg_score(np.array([ppr_np_array]), np.array([ppr_single_sources]), k=k)
+            print('NDCG score at k=' + str(k) + ':', ndcg_dict[str(k)])
+        # Calculate NDCG scores for all rankings (k=total_number_of_nodes)
+        ndcg_dict['full'] = ndcg_score(np.array([ppr_np_array]), np.array([ppr_single_sources]))
+
         utils.auxiliary_functions.set_json_attr_val('ndcg_scores', ndcg_dict, file_path=args.output_dir+'info.json')
 
     if args.run_networkx_ppr:

@@ -69,3 +69,15 @@ def set_json_attr_val(attr, data, file_path):
 
     with open(file_path, "w") as jsonFile:
         json.dump(json_data, jsonFile, sort_keys=True, indent=4)
+
+def get_json_attr_val(attr, file_path):
+    '''
+    Returns the data value of the object specified by attribute `attr` from the json specified in `file_path` 
+    If attribute `attr` doesn't exist then return None 
+    '''
+    with open(file_path, "r") as jsonFile:
+        data = json.load(jsonFile)
+    if attr in data:
+        return data[attr]
+    else:
+        return None
