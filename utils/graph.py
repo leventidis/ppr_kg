@@ -28,7 +28,12 @@ def get_graph_from_csv(file, source, target, edge_attr):
     df = pd.read_csv(file)
     G = nx.from_pandas_edgelist(df, source=source, target=target, edge_attr=edge_attr, create_using=nx.DiGraph())
 
-    # Add a weight of 1 to every edge
-    nx.set_edge_attributes(G, 1, 'weight')
+    # Add weights to the edges
+    for node in G:
+        edges = list(G.out_edges(node, data=True))
+        # Assign a uniform weight to each outgoing edge such that all outgoing edges have weights that sum to 1
+        weight = 1 / len(edges)
+        for edge in edges:
+            G[edge[0]][edge[1]]['weight'] = weight
 
     return G

@@ -27,9 +27,13 @@ def main(args):
         p = np.log(args.num_nodes) / args.num_nodes
         G = nx.fast_gnp_random_graph(n=args.num_nodes, p=p, seed=args.seed, directed=True)
 
-    # TODO: Allow for non uniform edge weights
-    # Add a weight of 1 to every edge
-    nx.set_edge_attributes(G, 1, 'weight')
+    # Add weights to the edges
+    for node in G:
+        edges = list(G.out_edges(node, data=True))
+        # Assign a uniform weight to each outgoing edge such that all outgoing edges have weights that sum to 1
+        weight = 1 / len(edges)
+        for edge in edges:
+            G[edge[0]][edge[1]]['weight'] = weight
 
     elapsed_time = timer()-start
     print('Finished constructing random graph. Elapsed time:', elapsed_time, 'seconds.')

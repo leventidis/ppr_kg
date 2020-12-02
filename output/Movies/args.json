@@ -1,20 +1,43 @@
 {
+    "distributed_pf": false,
+    "distributed_single_source_ppr": true,
     "edge_attr": null,
     "file_path": null,
+    "graph_info": {
+        "num_edges": 199802,
+        "num_nodes": 18707
+    },
     "graph_output_dir": null,
     "graph_path": "graphs/Movies/graph.gpickle",
-    "num_q_nodes": 5,
+    "num_q_nodes": 20,
     "output_dir": "output/Movies/",
+    "print_node_names_in_top_k": false,
     "query_nodes": [
         2513,
         15852,
         14287,
         4771,
-        9268
+        9268,
+        8408,
+        12189,
+        14754,
+        1755,
+        530,
+        15634,
+        8095,
+        14259,
+        39,
+        8331,
+        13497,
+        4279,
+        17683,
+        16863,
+        572
     ],
-    "run_networkx_ppr": false,
+    "run_networkx_ppr": true,
     "run_ppr_from_each_query_node": true,
     "seed": 1,
     "source": null,
-    "target": null
+    "target": null,
+    "user_specified_query_nodes": null
 }

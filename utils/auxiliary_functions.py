@@ -81,3 +81,27 @@ def get_json_attr_val(attr, file_path):
         return data[attr]
     else:
         return None
+
+def print_top_k_nodes(top_k_ppr, id_to_node_dict, print_node_names):
+    '''
+    Prints out the node and its respective ppr score
+
+    Arguments
+    -------
+        top_k_ppr (list of 2D tuples): The first element of the tuple is the node id.
+        The second element is the score. The tuples are sorted high->low ppr scores.
+
+        id_to_node_dict (dict): Dictionary mapping each node id to each name
+
+        print_node_names (bool): If true then prints node names instead of IDs 
+
+    Returns
+    -------
+    Nothing
+    '''
+    for tup in top_k_ppr:
+        if print_node_names:
+            print(str(id_to_node_dict[tup[0]]) + ': ' + str(tup[1]))
+        else:
+            print(str(tup[0]) + ': ' + str(tup[1]))
+
