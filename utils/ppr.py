@@ -2,10 +2,14 @@ import networkx as nx
 import numpy as np
 
 import os
+import multiprocessing
 
+from tqdm import tqdm
 from timeit import default_timer as timer
+from multiprocessing import Process, Queue
 
-def get_ppr(G, Q, c=0.15, t=0.001, return_type='dict', quiet=True):
+
+def get_ppr(G, Q, c=0.15, t=0.001, return_type='array', quiet=True):
     '''
     Run ppr using particle filtering on graph `G` and using query nodes `Q`
 
@@ -113,6 +117,53 @@ def get_ppr_from_single_source_nodes(dir):
     # Average the array by the number source nodes
     combined_ppr_scores /= len(numpy_files)
     return combined_ppr_scores
+
+def get_ppr_helper(queue, G, Q, c=0.15, t=0.001, return_type='array', quiet=True):
+    '''
+    Helper function for the distribution of single source ppr
+    '''
+    start = timer()
+    ppr, num_iterations = get_ppr(G=G, Q=Q, c=c, t=t, return_type=return_type, quiet=quiet)
+    elapsed_time = timer()-start
+
+    return_dict = {'ppr': ppr, 'num_iterations': num_iterations, 'elapsed_time': elapsed_time, 'query_node': Q[0]}
+    queue.put(return_dict)
+
+def get_ppr_from_single_source_nodes_parallel(G, Q, c=0.15, t=0.001, return_type='array', quiet=True):
+    # Single source ppr multi-core implementation
+    num_cpu_cores = multiprocessing.cpu_count()
+    q = Queue()
+    processes = []
+    stats_dict = {}
+    aggregate_ppr_single_source_node_np_array = np.zeros(G.number_of_nodes())
+    start_timer = timer()
+    for query_node in tqdm(Q):
+        if len(processes) < num_cpu_cores:
+            p = Process(target=get_ppr_helper, args=(q, G, [query_node]))
+            processes.append(p)
+            p.start()
+        else:
+            for p in processes:
+                ret = q.get() # will block
+                stats_dict[ret['query_node']] = {'runtime': ret['elapsed_time'], 'num_iterations': ret['num_iterations']}
+                aggregate_ppr_single_source_node_np_array += ret['ppr']
+            for p in processes:
+                p.join()
+            processes = []
+
+            # Run process for query_node
+            p = Process(target=get_ppr_helper, args=(q, G, [query_node]))
+            processes.append(p)
+            p.start()
+
+    for p in processes:
+        ret = q.get() # will block
+        stats_dict[ret['query_node']] = {'runtime': ret['elapsed_time'], 'num_iterations': ret['num_iterations']}
+        aggregate_ppr_single_source_node_np_array += ret['ppr']
+    for p in processes:
+        p.join()
+
+    return aggregate_ppr_single_source_node_np_array, stats_dict
 
 def get_ppr_distributed(G, Q, c=0.15, t=0.001, return_type='dict', quiet=True, n_processors=10):
     '''

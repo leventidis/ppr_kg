@@ -61,30 +61,31 @@ def main(args):
     # Check if we want to also run PPR from each query node seperately
     if args.run_ppr_from_each_query_node:
         single_source_output_dir = args.output_dir + 'single_source_ppr_scores/'
-        Path(args.output_dir + 'single_source_ppr_scores/').mkdir(parents=True, exist_ok=True)
         print('Calculating PPR from each source in the query set...')
-        stats_dict = {}
-        # Aggregate vector of the single source nodes
-        aggregate_ppr_single_source_node_np_array = np.zeros(G.number_of_nodes())
-        #TODO: Parallelize this operation
-        for query_node in tqdm(Q):
-            start = timer()
-            ppr_single_source_node_np_array, num_iterations = utils.ppr.get_ppr(G, [query_node], return_type='array')
-            elapsed_time = timer()-start
-            stats_dict[query_node] = {'runtime': elapsed_time, 'num_iterations': num_iterations}
-            aggregate_ppr_single_source_node_np_array += ppr_single_source_node_np_array
 
-            # Instead of saving the ppr vectors to disk, store in-memory and only save the combined ppr vector
-            # with open(single_source_output_dir + str(query_node) + '.npy', 'wb') as f:
-            #     np.save(f, ppr_single_source_node_np_array)
+        if args.distributed_single_source_ppr:
+            # Single source ppr multi-core implementation
+            start_timer = timer()
+            aggregate_ppr_single_source_node_np_array, stats_dict = utils.ppr.get_ppr_from_single_source_nodes_parallel(G, Q)
+            print('Total Elapsed time distribute implementation:', timer()-start_timer)
+        else:
+            # Single source ppr single-core implementation
+            aggregate_ppr_single_source_node_np_array = np.zeros(G.number_of_nodes())
+            stats_dict = {}
+            start_timer = timer()
+            for query_node in tqdm(Q):
+                start = timer()
+                ppr_single_source_node_np_array, num_iterations = utils.ppr.get_ppr(G, [query_node], return_type='array')
+                elapsed_time = timer()-start
+                stats_dict[query_node] = {'runtime': elapsed_time, 'num_iterations': num_iterations}
+                aggregate_ppr_single_source_node_np_array += ppr_single_source_node_np_array
+            print('Total Elapsed time with single cpu:', timer()-start_timer)
 
         # Calculate a combined ppr vector for all sources in the query 
         ppr_single_sources = aggregate_ppr_single_source_node_np_array / len(Q) 
 
         utils.auxiliary_functions.set_json_attr_val('ppr_single_source_using_pf', stats_dict, file_path=args.output_dir+'info.json')
         print('Finished calculating PPR from each source in the query set.\n')
-
-        # ppr_single_sources = utils.ppr.get_ppr_from_single_source_nodes(single_source_output_dir)
 
         with open(args.output_dir + 'ppr_single_source_scores.npy', 'wb') as f:
             np.save(f, ppr_single_sources)
@@ -115,19 +116,20 @@ def main(args):
 
         utils.auxiliary_functions.set_json_attr_val('ndcg_scores', ndcg_dict, file_path=args.output_dir+'info.json')
 
-    #Evaluation of Distributed Particle Filtering
-    ppr_dist, num_iterations_dist = utils.ppr.get_ppr_distributed(G, Q, return_type='array')
-    top_k_ppr_dist = utils.auxiliary_functions.get_top_k_vals_numpy(ppr_dist, 10)
-    print('\nTOP-10 nodes using Dist PPR')
-    for tup in top_k_ppr_dist:
-        print(str(tup[0]) + ': ' + str(tup[1]))
-    k_vals = [1, 5, 10, 50, 100, 200, 500, 1000]
-    ndcg_dist_dict = {}
-    print('The number of iterations for distributed PPR', num_iterations_dist)
-    print('\n\nNormalized discounted cumulative gain (NDCG) scores at various k values for Dist PPR')
-    for k in k_vals:
-        ndcg_dict[k] = ndcg_score(np.array([ppr_np_array]), np.array([ppr_dist]), k=k)
-        print('NDCG score at k=' + str(k) + ':', ndcg_dict[k])
+    if args.distributed_pf:
+        #Evaluation of Distributed Particle Filtering
+        ppr_dist, num_iterations_dist = utils.ppr.get_ppr_distributed(G, Q, return_type='array')
+        top_k_ppr_dist = utils.auxiliary_functions.get_top_k_vals_numpy(ppr_dist, 10)
+        print('\nTOP-10 nodes using Dist PPR')
+        for tup in top_k_ppr_dist:
+            print(str(tup[0]) + ': ' + str(tup[1]))
+        k_vals = [1, 5, 10, 50, 100, 200, 500, 1000]
+        ndcg_dist_dict = {}
+        print('The number of iterations for distributed PPR', num_iterations_dist)
+        print('\n\nNormalized discounted cumulative gain (NDCG) scores at various k values for Dist PPR')
+        for k in k_vals:
+            ndcg_dict[k] = ndcg_score(np.array([ppr_np_array]), np.array([ppr_dist]), k=k)
+            print('NDCG score at k=' + str(k) + ':', ndcg_dict[k])
     
 
     if args.run_networkx_ppr:
@@ -192,6 +194,14 @@ if __name__ == "__main__":
     parser.add_argument('--run_networkx_ppr', action='store_true', 
     help='Denotes if we want to run the PPR implementation provided by NetworkX.')
 
+    # Denotes if we want to run PPR using particle filtering in a distributed manner.
+    parser.add_argument('--distributed_pf', action='store_true', 
+    help='Denotes if we want to run PPR using particle filtering in a distributed manner.')
+
+    # Denotes if we want run single source ppr in a distributed manner. If not specified a single-cpu implementation is used
+    parser.add_argument('--distributed_single_source_ppr', action='store_true', 
+    help='Denotes if we want run single source ppr in a distributed manner. If not specified a single-cpu implementation is used')
+
     # If specified graph already exists so we do not need to build it and can directly load it
     # The path to the graph must be a pickle object of a networkx graph.
     parser.add_argument('--graph_path', metavar='graph_path',
@@ -220,12 +230,16 @@ if __name__ == "__main__":
         print('Graph output directory:', args.graph_output_dir)
         Path(args.graph_output_dir).mkdir(parents=True, exist_ok=True)
 
-    print('Output directory', args.output_dir)
-    print('Number of query nodes randomly chosen', args.num_q_nodes)
+    print('Output directory:', args.output_dir)
+    print('Number of query nodes randomly chosen:', args.num_q_nodes)
     if args.run_ppr_from_each_query_node:
         print('In addition: Run PPR using PF from each query node seperately')
+        if args.distributed_single_source_ppr:
+            print('Single source PPR is run in a distributed manner')
     if args.run_networkx_ppr:
         print('In addition: Run PPR using the implementation by NetworkX')
+    if args.distributed_pf:
+        print('In addition: Run PPR with PF in a distributed manner')
     if args.seed:
         print('User specified seed:', args.seed)
         random.seed(args.seed) # Set the seed
