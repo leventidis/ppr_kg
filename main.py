@@ -23,7 +23,9 @@ def main(args):
         G = nx.read_gpickle(args.graph_path)
 
         dict_path = args.graph_path[0:args.graph_path.rfind('/') + 1]
-        node_to_id_dict = pickle.load(open(dict_path+'node_to_id_dict.pickle', 'rb'))
+
+        if (not args.no_dictionary):
+            node_to_id_dict = pickle.load(open(dict_path+'node_to_id_dict.pickle', 'rb'))
 
         id_to_node_dict = None
         if args.print_node_names_in_top_k:
@@ -246,6 +248,11 @@ if __name__ == "__main__":
     parser.add_argument('--print_node_names_in_top_k', action='store_true',
     help='If specified top-k ppr scores are printed in the terminal using the node names and not the ids. \
     The dictionaries between id to node must be stored in the same directory as the --graph_path.')
+
+    # If specified it is assumed that no mapping dictionaries exist.
+    # This is to be used only for random graph testing
+    parser.add_argument('--no_dictionary', action='store_true',
+    help='If specified it is assumed that no mapping dictionaries exist. This is to be used only for random graph testing')
 
     # Parse the arguments
     args = parser.parse_args() 
