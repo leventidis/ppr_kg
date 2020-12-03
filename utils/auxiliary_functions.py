@@ -3,6 +3,9 @@ import random
 import networkx as nx
 import numpy as np
 
+from wikidata.client import Client
+import json
+from urllib.request import urlopen
 
 def get_query_nodes(G, k):
     '''
@@ -101,7 +104,17 @@ def print_top_k_nodes(top_k_ppr, id_to_node_dict, print_node_names):
     '''
     for tup in top_k_ppr:
         if print_node_names:
-            print(str(id_to_node_dict[tup[0]]) + ': ' + str(tup[1]))
+            node = str(id_to_node_dict[tup[0]]) 
+            print(node + '\t'+ getWikiDataNameFromNode(node) +'\t: ' + str(tup[1]))
         else:
             print(str(tup[0]) + ': ' + str(tup[1]))
 
+
+def getWikiDataNameFromNode (url):
+    try: 
+        data = json.load(urlopen(url))
+        id = url.split("/")[-1]
+        label = data["entities"][id]["labels"]["en"]["value"]
+        return label
+    except:
+        return ""
