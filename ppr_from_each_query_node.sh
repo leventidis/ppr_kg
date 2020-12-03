@@ -2,8 +2,8 @@
 
 # Shell script to run multiple times with different seeds the ppr from a single node
 
-graph_path=graphs/random/nodes100000/
-output_dir=output/random/nodes100000/
+graph_path=graphs/random/nodes500000/
+output_dir=output/random/nodes500000/
 
 # Sizes of query sets to test
 declare -a num_query_nodes_arr=("5" "10" "20" "100")
@@ -23,6 +23,8 @@ do
             --output_dir "${output_dir}query_nodes_${num_q_nodes}/seed$seed/" \
             --num_q_nodes $num_q_nodes \
             --seed $seed \
+            --no_dictionary \
             --run_ppr_from_each_query_node
+            # --distributed_single_source_ppr
     done
 done
