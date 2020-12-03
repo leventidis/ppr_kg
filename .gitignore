@@ -3,6 +3,9 @@ output/single_source_ppr_movies
 output/Movies/single_source_ppr_scores
 output/random
 graphs/random
+output/
+graphs/
+dbpedia/
 
 # VScode ignores
 .vscode/

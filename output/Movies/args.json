@@ -1,6 +1,6 @@
 {
     "distributed_pf": false,
-    "distributed_single_source_ppr": true,
+    "distributed_single_source_ppr": false,
     "edge_attr": null,
     "file_path": null,
     "graph_info": {
@@ -9,35 +9,21 @@
     },
     "graph_output_dir": null,
     "graph_path": "graphs/Movies/graph.gpickle",
-    "num_q_nodes": 20,
+    "no_dictionary": false,
+    "num_q_nodes": 5,
     "output_dir": "output/Movies/",
-    "print_node_names_in_top_k": false,
+    "print_node_names_in_top_k": true,
     "query_nodes": [
-        2513,
-        15852,
-        14287,
-        4771,
-        9268,
-        8408,
-        12189,
-        14754,
-        1755,
-        530,
-        15634,
-        8095,
-        14259,
-        39,
-        8331,
-        13497,
-        4279,
-        17683,
-        16863,
-        572
+        8583,
+        7402
     ],
     "run_networkx_ppr": true,
-    "run_ppr_from_each_query_node": true,
-    "seed": 1,
+    "run_ppr_from_each_query_node": false,
+    "seed": 5721147386584978156,
     "source": null,
     "target": null,
-    "user_specified_query_nodes": null
+    "user_specified_query_nodes": [
+        "http://www.wikidata.org/entity/Q8877",
+        "http://www.wikidata.org/entity/Q4465"
+    ]
 }
